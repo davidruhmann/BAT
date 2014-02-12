@@ -1,5 +1,3 @@
-:: Limitations
-:: - Does not support exclamation marks due to delayed expansion
 :: http://stackoverflow.com/a/21736349/891976
 
 @echo on
@@ -34,18 +32,17 @@ set "return="
 :_return
 if "%~1"=="" endlocal & exit /b 1
 if not defined %~1 goto __return
-set "_=!%~1!"
-setlocal disabledelayedexpansion
-set "_=%_:"=""%"
-set "_=%_:^=^^%"
-set "_=%_:<=^<%"
-set "_=%_:>=^>%"
-set "_=%_:&=^&%"
-set "_=%_:|=^|%"
-set "_=%_:!=^!%"
-endlocal & set "return=!return!^&set ""%~1=%_%"""
+set "%~1=!%~1:"=""!"
+set "%~1=!%~1:^=^^!"
+set "%~1=!%~1:<=^<!"
+set "%~1=!%~1:>=^>!"
+set "%~1=!%~1:&=^&!"
+set "%~1=!%~1:|=^|!"
+set "return=!return!^&set ""%~1=!%~1!"""
 :__return
 if not "%~2"=="" shift & goto _return
 set return
-endlocal & set "return=%return:""="%"
+setlocal disabledelayedexpansion
+set "return=%return:!=^^^^^^^!%"
+endlocal & endlocal & set "return=%return:""="%"
 exit /b 0
