@@ -1,6 +1,6 @@
 :: Limitations
 :: - Does not support exclamation marks due to delayed expansion
-:: - Does not support the circumflex accent character due it being the escape
+:: http://stackoverflow.com/a/21736349/891976
 
 @echo on
 setlocal enabledelayedexpansion
@@ -49,5 +49,3 @@ if not "%~2"=="" shift & goto _return
 set return
 endlocal & set "return=%return:""="%"
 exit /b 0
-
-Thanks for bringing that to my attention. The ampersand issue should be fixed now.
