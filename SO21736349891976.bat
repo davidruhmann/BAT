@@ -1,6 +1,7 @@
 :: By David Ruhmann
 :: For http://stackoverflow.com/a/21736349/891976
 
+:: Example
 @echo on
 :: Declare Outside Scope
 setlocal enabledelayedexpansion
@@ -29,6 +30,7 @@ echo(c=!c!
 echo(d=!d!
 endlocal
 exit /b 0
+
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Build a multi-variable return statement in the variable "return"
