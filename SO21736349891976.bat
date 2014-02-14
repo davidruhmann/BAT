@@ -28,9 +28,7 @@ echo(b=!b!
 echo(c=!c!
 echo(d=!d!
 echo(e=!e!
-:: Return A C and D
-::call :return2 a c d e
-::pause
+:: Return A C D E
 echo return a c d e
 call :return a c d e
 ::set return
@@ -45,41 +43,6 @@ echo(d=!d!
 echo(e=!e!
 endlocal
 pause
-exit /b 0
-
-
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Escape the special characters within a variable value.
-:: Parameter variable may not be equal to the internal variable name "_" underscore.
-:escape <variable> <outvar>
-setlocal enabledelayedexpansion
-set "_=%~2"
-if not defined _ endlocal & exit /b 1
-if not defined %~2 endlocal & exit /b 2
-set "%~2="
-set "_=%~1"
-if not defined _ endlocal & exit /b 3
-if not defined %~1 endlocal & exit /b 4
-set "_=!%~1!"
-set "_=%_:"=""%"
-set "_=%_:^=^^%"
-set "_=%_:<=^<%"
-set "_=%_:>=^>%"
-set "_=%_:&=^&%"
-set "_=%_:|=^|%"
-setlocal disabledelayedexpansion
-set "_=%_:!=^^^^^^^!%"
-endlocal & endlocal & set "%~2=%_:""="%"
-exit /b 0
-
-
-:return2 [Variables...]
-set "return="
-setlocal enabledelayedexpansion
-::for %%A in (%*) do for /f "tokens=1,* delims==" %%B in ('set %%~A') do if /i "%%~A"=="%%~B" for /f "tokens=1,* delims==" %%D ('set return') do if /i "return"=="%%~D" set "return=%%E&set "%%~A=%%C""
-::for %%A in (%*) do call :escape %%~A value && set return=!return!^&set "%%~A=!value!"
-set return
-endlocal & %return%
 exit /b 0
 
 
