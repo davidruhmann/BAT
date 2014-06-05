@@ -1,13 +1,16 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-rem Default PROJECT_NAME to JOB_NAME if not specified
-call :Expand PROJECT_NAME %PROJECT_NAME% %JOB_NAME%
+rem Find the Project
+call :FindProject "*.csproj *.vcxproj *.vcproj" || goto End
 
 rem Default to x86, Visual Studio 2013, and no Klocwork
 call :Expand VCARC %VCARC% x86
 call :Expand VCVER %VCVER% 120
 call :Expand KLOCWORK %KLOCWORK% NO
+
+rem Adjust Defaults based on Project Type
+if /i "%PROJECT_EXT%"==".vcproj" set "VCVER=90"
 
 rem Setup the Visual Studio Environment
 call :VCVars %VCVER% %VCARC% || goto End
@@ -17,7 +20,7 @@ call :Build Release %VCVER% || goto End
 call :Build Debug %VCVER% || goto End
 
 rem Run Klocwork Analysis
-call :Klocwork Debug %VCVER% || goto End
+call :Klocwork Debug %VCVER% %PROJECT% || goto End
 
 :End
 echo.
@@ -25,7 +28,7 @@ echo Exit Code = %ErrorLevel%
 @echo on & @endlocal & @exit /b %ErrorLevel%
 
 
-:Klocwork <Configuration> <Version>
+:Klocwork <Configuration> <Version> {Project}
 rem Check for Klocwork Flag
 if not defined Klocwork exit /b 0
 if /i not "%Klocwork:~0,1%"=="y" exit /b 0
@@ -36,13 +39,40 @@ if not exist .kwps rd /S /Q .kwlp 2>nul
 rem Create Local Klocwork Project
 kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC 2>nul || kwcheck sync
 kwcheck info
-rem Run Klocwork Injector, Analysis, and Report Generators
-call :Build %1 %2 kwinject || exit /b 1
+rem Run Klocwork Build Injector
+if /i "%PROJECT:~-6%"==".csproj" call :KlocworkSharpInject %1 %2 %PROJECT% || exit /b 5
+if /i not "%PROJECT:~-6%"==".csproj" call :Build %1 %2 kwinject || exit /b 1
+rem Run Klocwork Analysis, and Report Generators
 kwcheck run -b kwinject.out || exit /b 2
 kwcheck list -F xml --report KlocworkReport.xml || exit /b 3
 kwcheck list -F detailed --report KlocworkTraceReport.txt || exit /b 4
 echo Klockwork Analysis succeeded.
 exit /b %ErrorLevel%
+
+
+:KlocworkSharpInject <Configuration> <Version> <Project>
+setlocal
+rem C# Configuration Detection
+call :FindProject "*.csproj" || exit /b 2
+set "CONFIG=" &for /f "delims=" %%A in ('kwcsprojparser "%PROJECT%" --list-configs^|findstr /i "^%~1|"') do if not defined CONFIG set "CONFIG=%%~A"
+if not defined CONFIG endlocal & exit /b 1
+:: Create C# Klocwork Build Configuration
+set "TFV="
+if "%~2"=="100" set "TFV=TargetFrameworkVersion=v3.5"
+@echo on
+kwcsprojparser "%PROJECT%" -p %TFV% -c "%CONFIG%" -o kwinject.out
+@echo off
+endlocal & exit /b %ErrorLevel%
+
+
+:FindProject <Filters>
+set "PROJECT="
+set "PROJECT_EXT="
+set "PROJECT_NAME="
+for /f "delims=" %%A in ('dir /b /a-d %~1 2^>nul') do if not defined PROJECT set "PROJECT=%%~nxA" &set "PROJECT_EXT=%%~xA" &set "PROJECT_NAME=%%~nA"
+if defined PROJECT exit /b 0
+echo ERROR: No project file found. Supported Types = %~1
+exit /b 1
 
 
 :Build <Configuration> <Version> [Klocwork]
@@ -60,8 +90,7 @@ endlocal & exit /b %ErrorLevel%
 rem devenv /Build "%~1" /useenv
 :MSBuild <Configuration> <Version> [Klocwork]
 setlocal
-if "%~2"=="100" set "ToolsVersion=4.0"
-if "%~2"=="110" set "ToolsVersion=11.0"
+if "%~2"=="100" set "ToolsVersion=4.0 /p:TargetFrameworkVersion=v3.5"
 if "%~2"=="120" set "ToolsVersion=12.0"
 set "Command=MSBuild /ToolsVersion:%ToolsVersion% /p:PlatformToolset=v%~2 /p:Configuration=%~1 /p:OutDir=%~1\ /p:IntDir=%~1\ /p:IncludePath="%INCLUDE%" /p:LibraryPath="%LIB%" /p:ReferencePath="%LIBPATH%""
 call :Defined %3 && set "Command=%Command:"=\"% /nr:false /t:Rebuild"
@@ -86,14 +115,14 @@ endlocal & exit /b %ErrorLevel%
 rem Update the Environment Variables
 call :Expand INCLUDE "%VCINCLUDE%;%INCLUDE%;"
 call :Expand LIB "%VCLIB%;%LIB%;"
-call :Expand LIBPATH "%VCLIB%;%VCREFERENCE%;%LIBPATH%;"
+call :Expand LIBPATH "%VCREFERENCE%;%LIBPATH%;"
 call :Expand PATH "%VCPATH%;%PATH%;"
 call :Expand DPATH "%PATH%;"
 call :Defined %1 || exit /b 0
 rem Using Debug Environment Variables
 call :Expand INCLUDE "%VCINCLUDED%;%INCLUDE%;"
 call :Expand LIB "%VCLIBD%;%LIB%;"
-call :Expand LIBPATH "%VCLIBD%;%VCREFERENCED%;%LIBPATH%;"
+call :Expand LIBPATH "%VCREFERENCED%;%LIBPATH%;"
 call :Expand PATH "%VCPATHD%;%PATH%;"
 call :Expand DPATH "%PATH%;"
 exit /b 0
@@ -115,10 +144,9 @@ call :Defined "%~2" || exit /b 2
 rem Visual Studio Environment Setup Scripts
 if "%~1"=="90" call "%ProgramFiles(x86)%\Microsoft Visual Studio 9.0\VC\vcvarsall.bat" %~2 && exit /b 0
 if "%~1"=="100" call "%ProgramFiles(x86)%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" %~2 && exit /b 0
-if "%~1"=="110" call "%ProgramFiles(x86)%\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %~2 && exit /b 0
 if "%~1"=="120" call "%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" %~2 && exit /b 0
 echo Error: Unknown version of Visual Studio specified. Version=%~1
-echo Supported versions include 90, 100, 110, and 120.
+echo Supported versions include 90, 100, and 120.
 exit /b 3
 
 
