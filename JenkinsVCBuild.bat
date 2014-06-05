@@ -1,9 +1,4 @@
 @echo off
-rem Invoke Myself to Bypass Jenkins Script Interpreter Issues
-if "%~1"=="self" goto Script
-call "%~f0" self
-exit /b %ErrorLevel%
-:Script
 setlocal EnableDelayedExpansion
 
 rem Default PROJECT_NAME to JOB_NAME if not specified
@@ -21,34 +16,33 @@ rem Build Release and Debug
 call :Build Release %VCVER% || goto End
 call :Build Debug %VCVER% || goto End
 
-
-rem Check for Klocwork Flag
-if not defined Klocwork goto End
-if /i not "%Klocwork:~0,1%"=="y" goto End
-echo Running Klocwork Analysis...
-
-
-rem Create Local Klocwork Project
-kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC 2>nul || kwcheck sync
-kwcheck info
-
-rem Run Klocwork Injector
-call :Build Debug %VCVER% kwinject || goto End
-
-rem Run the Analysis
-if /i "%Klocwork:~-7%"=="rebuild" set "Rebuild=--rebuild"
-kwcheck run %Rebuild% -b kwinject.out || goto End
-
-rem Generate the Report
-kwcheck list -F xml --report KlocworkReport.xml || goto End
-echo Klockwork Analysis succeeded.
-goto End
-
+rem Run Klocwork Analysis
+call :Klocwork Debug %VCVER% || goto End
 
 :End
 echo.
-echo Build Exit Code = %ErrorLevel%
+echo Exit Code = %ErrorLevel%
 @echo on & @endlocal & @exit /b %ErrorLevel%
+
+
+:Klocwork <Configuration> <Version>
+rem Check for Klocwork Flag
+if not defined Klocwork exit /b 0
+if /i not "%Klocwork:~0,1%"=="y" exit /b 0
+echo Running Klocwork Analysis...
+rem Clean standalone caches
+if not exist .kwlp rd /S /Q .kwps 2>nul
+if not exist .kwps rd /S /Q .kwlp 2>nul
+rem Create Local Klocwork Project
+kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC 2>nul || kwcheck sync
+kwcheck info
+rem Run Klocwork Injector, Analysis, and Report Generators
+call :Build %1 %2 kwinject || exit /b 1
+kwcheck run -b kwinject.out || exit /b 2
+kwcheck list -F xml --report KlocworkReport.xml || exit /b 3
+kwcheck list -F detailed --report KlocworkTraceReport.txt || exit /b 4
+echo Klockwork Analysis succeeded.
+exit /b %ErrorLevel%
 
 
 :Build <Configuration> <Version> [Klocwork]
@@ -70,7 +64,7 @@ if "%~2"=="100" set "ToolsVersion=4.0"
 if "%~2"=="110" set "ToolsVersion=11.0"
 if "%~2"=="120" set "ToolsVersion=12.0"
 set "Command=MSBuild /ToolsVersion:%ToolsVersion% /p:PlatformToolset=v%~2 /p:Configuration=%~1 /p:OutDir=%~1\ /p:IntDir=%~1\ /p:IncludePath="%INCLUDE%" /p:LibraryPath="%LIB%" /p:ReferencePath="%LIBPATH%""
-call :Defined %3 && set "Command=%Command:"=\"%"
+call :Defined %3 && set "Command=%Command:"=\"% /nr:false /t:Rebuild"
 @echo on
 %~3 %Command%
 @echo off
@@ -79,24 +73,27 @@ endlocal & exit /b %ErrorLevel%
 
 rem devenv /Build "%~1" /useenv
 :VCBuild <Configuration> [Klocwork]
+setlocal
+set "Command=VCBuild /time /useenv "%~1""
+call :Defined %3 && set "Command=%Command:"=\"% /rebuild"
 @echo on
-%~3 VCBuild /time /useenv "%~1"
+%~3 %Command%
 @echo off
-exit /b %ErrorLevel%
+endlocal & exit /b %ErrorLevel%
 
 
 :BuildEnvironment [Debug Flag]
 rem Update the Environment Variables
 call :Expand INCLUDE "%VCINCLUDE%;%INCLUDE%;"
 call :Expand LIB "%VCLIB%;%LIB%;"
-call :Expand LIBPATH "%VCREFERENCE%;%LIBPATH%;"
+call :Expand LIBPATH "%VCLIB%;%VCREFERENCE%;%LIBPATH%;"
 call :Expand PATH "%VCPATH%;%PATH%;"
 call :Expand DPATH "%PATH%;"
 call :Defined %1 || exit /b 0
 rem Using Debug Environment Variables
 call :Expand INCLUDE "%VCINCLUDED%;%INCLUDE%;"
 call :Expand LIB "%VCLIBD%;%LIB%;"
-call :Expand LIBPATH "%VCREFERENCED%;%LIBPATH%;"
+call :Expand LIBPATH "%VCLIBD%;%VCREFERENCED%;%LIBPATH%;"
 call :Expand PATH "%VCPATHD%;%PATH%;"
 call :Expand DPATH "%PATH%;"
 exit /b 0
@@ -134,7 +131,7 @@ call :Expand "%~1" "%%%~1:\\=\%%"
 call :Expand "%~1" "%%%~1:\;=;%%"
 call :RemoveDuplicates %1
 call :Expand "%~1" "%%%~1:;;=;%%"
-call :CheckList %1
+rem call :CheckList %1
 exit /b %ErrorLevel%
 
 
