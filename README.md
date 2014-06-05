@@ -3,8 +3,8 @@ BATCH
 
 .BAT and .CMD
 
-Most can still be found as Gists at https://gist.github.com/DavidRuhmann.
+Many of my batch scripts can be found as Gists at [https://gist.github.com/DavidRuhmann](https://gist.github.com/DavidRuhmann).
 
 ###TODO
 
-Convert my Gists into files for this repo.
+* Convert my Gists into files for this repo.
