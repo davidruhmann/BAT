@@ -8,6 +8,7 @@ rem Default to x86, Visual Studio 2013, and no Klocwork
 call :Expand VCARC %VCARC% x86
 call :Expand VCVER %VCVER% 120
 call :Expand KLOCWORK %KLOCWORK% NO
+call :Expand VCLOG %VCLOG% normal
 
 rem Adjust Defaults based on Project Type
 if /i "%PROJECT_EXT%"==".vcproj" set "VCVER=90"
@@ -16,11 +17,11 @@ rem Setup the Visual Studio Environment
 call :VCVars %VCVER% %VCARC% || goto End
 
 rem Build Release and Debug
-call :Build Release %VCVER% || goto End
-call :Build Debug %VCVER% || goto End
+call :Build Release %VCVER% %VCLOG% || goto End
+call :Build Debug %VCVER% %VCLOG% || goto End
 
 rem Run Klocwork Analysis
-call :Klocwork Debug %VCVER% %PROJECT% || goto End
+call :Klocwork Debug %VCVER% %VCLOG% %PROJECT% || goto End
 
 :End
 echo.
@@ -28,7 +29,7 @@ echo Exit Code = %ErrorLevel%
 @echo on & @endlocal & @exit /b %ErrorLevel%
 
 
-:Klocwork <Configuration> <Version> {Project}
+:Klocwork <Configuration> <Version> <Verbosity> <Project>
 rem Check for Klocwork Flag
 if not defined Klocwork exit /b 0
 if /i not "%Klocwork:~0,1%"=="y" exit /b 0
@@ -40,8 +41,7 @@ rem Create Local Klocwork Project
 kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC 2>nul || kwcheck sync
 kwcheck info
 rem Run Klocwork Build Injector
-if /i "%PROJECT:~-6%"==".csproj" call :KlocworkSharpInject %1 %2 %PROJECT% || exit /b 5
-if /i not "%PROJECT:~-6%"==".csproj" call :Build %1 %2 kwinject || exit /b 1
+call :IsSharp %4 && ( call :KlocworkSharpInject %1 %2 %4 || exit /b 5 ) || ( call :Build %1 %2 %3 kwinject || exit /b 1 )
 rem Run Klocwork Analysis, and Report Generators
 kwcheck run -b kwinject.out || exit /b 2
 kwcheck list -F xml --report KlocworkReport.xml || exit /b 3
@@ -54,15 +54,22 @@ exit /b %ErrorLevel%
 setlocal
 rem C# Configuration Detection
 call :FindProject "*.csproj" || exit /b 2
-set "CONFIG=" &for /f "delims=" %%A in ('kwcsprojparser "%PROJECT%" --list-configs^|findstr /i "^%~1|"') do if not defined CONFIG set "CONFIG=%%~A"
+set "CONFIG=" &for /f "delims=" %%A in ('kwcsprojparser "%~3" --list-configs^|findstr /i "^%~1|"') do if not defined CONFIG set "CONFIG=%%~A"
 if not defined CONFIG endlocal & exit /b 1
 :: Create C# Klocwork Build Configuration
 set "TFV="
 if "%~2"=="100" set "TFV=TargetFrameworkVersion=v3.5"
 @echo on
-kwcsprojparser "%PROJECT%" -p %TFV% -c "%CONFIG%" -o kwinject.out
+kwcsprojparser "%~3" -p %TFV% -c "%CONFIG%" -o kwinject.out
 @echo off
 endlocal & exit /b %ErrorLevel%
+
+
+:IsSharp <Project>
+setlocal
+call :Expand PROJECT %1 || endlocal & exit /b 1
+if /i "%PROJECT:~-6%"==".csproj" endlocal & exit /b 0
+endlocal & exit /b 2
 
 
 :FindProject <Filters>
@@ -75,27 +82,29 @@ echo ERROR: No project file found. Supported Types = %~1
 exit /b 1
 
 
-:Build <Configuration> <Version> [Klocwork]
+:Build <Configuration> <Version> <Verbosity> [Klocwork]
 setlocal
 if /i "%~1"=="Debug" set "Debug=YES"
 call :BuildEnvironment %Debug%
 call :TidyEnvironment
-if "%~2"=="90" call :VCBuild %1 %3
-if "%~2"=="100" call :MSBuild %1 %2 %3
-if "%~2"=="110" call :MSBuild %1 %2 %3
-if "%~2"=="120" call :MSBuild %1 %2 %3
+if "%~2"=="90" call :VCBuild %1 %4
+if "%~2"=="100" call :MSBuild %1 %2 %3 %4
+if "%~2"=="110" call :MSBuild %1 %2 %3 %4
+if "%~2"=="120" call :MSBuild %1 %2 %3 %4
 endlocal & exit /b %ErrorLevel%
 
 
 rem devenv /Build "%~1" /useenv
-:MSBuild <Configuration> <Version> [Klocwork]
+:MSBuild <Configuration> <Version> <Verbosity> [Klocwork]
 setlocal
+set "ToolsVersion="
 if "%~2"=="100" set "ToolsVersion=4.0 /p:TargetFrameworkVersion=v3.5"
 if "%~2"=="120" set "ToolsVersion=12.0"
-set "Command=MSBuild /ToolsVersion:%ToolsVersion% /p:PlatformToolset=v%~2 /p:Configuration=%~1 /p:OutDir=%~1\ /p:IntDir=%~1\ /p:IncludePath="%INCLUDE%" /p:LibraryPath="%LIB%" /p:ReferencePath="%LIBPATH%""
-call :Defined %3 && set "Command=%Command:"=\"% /nr:false /t:Rebuild"
+set "Dbg=" & rem if /i "%~1"=="Debug" set "Dbg=/p:WarningLevel=4"
+set "Command=MSBuild /tv:%ToolsVersion% /p:PlatformToolset=v%~2 /p:Configuration=%~1 /p:OutDir=%~1\ /p:IntDir=%~1\ /p:IncludePath="%INCLUDE%" /p:LibraryPath="%LIB%" /p:ReferencePath="%LIBPATH%"" %Dbg% /m /v:%~3 /ignore:.sln
+call :Defined %4 && set "Command=%Command:"=\"% /nr:false /t:Rebuild"
 @echo on
-%~3 %Command%
+%~4 %Command%
 @echo off
 endlocal & exit /b %ErrorLevel%
 
@@ -103,7 +112,7 @@ endlocal & exit /b %ErrorLevel%
 rem devenv /Build "%~1" /useenv
 :VCBuild <Configuration> [Klocwork]
 setlocal
-set "Command=VCBuild /time /useenv "%~1""
+set "Command=VCBuild /M /time /useenv "%~1""
 call :Defined %3 && set "Command=%Command:"=\"% /rebuild"
 @echo on
 %~3 %Command%
