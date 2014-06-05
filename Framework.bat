@@ -38,6 +38,14 @@
 ::   See TODOs in this script.
 ::   Add Dave Benham's JScript Hybrid REPL.BAT
 ::   net user /domain %username%
+:: 2014-04-24
+::   Enhanced Expand Routine
+:: 2013-03-17
+::   Added Version
+:: 2014-01-21
+::   Added IsRemote
+:: 2014-01-17
+::   Added Compress
 :: 2014-01-10
 ::   Added IsFull Routine
 ::   Updated ColorIO to Version 21+
@@ -226,6 +234,11 @@ for /f %%A in (
 exit /b %ErrorLevel%
 
 
+:BoundBack
+call :BountTo %BOUNDSOLD%
+exit /b %ErrorLevel%
+
+
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::UI
 :: Adjust the Console Size and Buffer Size.  Sizing is by Rows and Columns.
 :: A backup of the BOUNDS is stored in an environment variable OLDBOUNDS.
@@ -323,6 +336,14 @@ shift & shift
 call :Defined %1 && goto ColorLine || verify >nul
 call :Void NewLine
 exit /b %ErrorLevel%
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::IO
+:: Max Cab size is 1.99 GB
+:Compress <File> [Target]
+makecab %1 %2 >nul 2>&1
+exit /b %ErrorLevel%
+
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -554,13 +575,15 @@ exit /b %ErrorLevel%
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: This works by exploiting the defined command.  If the Var is null, then the
-:: set command will fail, the error message is caught, and the defined command
-:: will fail because there should NEVER exist a variable called exit.
+:: This works by exploiting the set and defined commands.  If the Var is null,
+:: then the set command will fail, the error message is caught, and the defined
+:: command will fail because there should NEVER exist a variable named =.
+:: Usage: call :Expand A %~1 0
+:: The default works by exploiting how commands are parsed.  If parameter 1 is
+:: empty, then 0 will be passed to the routine as Value.
 :Expand <Var> [Value] [Default]
-set "exit="
 2>nul set "%~1=%~2"
-if defined %~1 exit /b 0
+if defined %~1 = exit /b 0
 exit /b 1
 
 
@@ -662,6 +685,13 @@ set "%1=!%1!"
 set "ErrorLevel=0"
 if defined %1 set "ErrorLevel=3"
 endlocal & exit /b %ErrorLevel%
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::IO
+:IsRemote <Path>
+if "%~d1"=="\\" exit /b 0
+net use "%~d1" >nul 2>&1 && exit /b 0
+exit /b 1
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::IO
@@ -1132,6 +1162,19 @@ call :Wait 150
 call :Write %Message:~0,1%
 call :Expand Message %Message:~1% && goto TypingLoop
 endlocal
+exit /b 0
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:Version <VarForCSV=Name,Service Pack,Architecture,Major,Minor,Build,SP>
+setlocal
+set "Key=HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+for /f "tokens=2,*" %A in ('reg query "%Key%" ^| find /i "ProductName"') do set "Temp=%%~B"
+for /f "tokens=2,*" %A in ('reg query "%Key%" ^| find /i "CSDVersion"') do set "Temp=%Temp%,%%~B"
+set "Temp=%Temp%,%Processor_Architecture%"
+for /f "tokens=4,5,6 delims=[.] " %%A in ('ver') do set "Temp=%Temp%,%%~A,%%~B,%%~C"
+for /f "tokens=2,*" %A in ('reg query "%Key%" ^| find /i "CSDBuildNumber"') do set "Temp=%Temp%,%%~B"
+endlocal & set "%~1=%Temp%"
 exit /b 0
 
 
