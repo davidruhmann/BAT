@@ -1,0 +1,40 @@
+<div><b>Template job. Do not build! Do not edit!</b></div>
+<br/>
+<div>Visual C++ and C# Builder Job.  Builds the <u>Release</u> and <u>Debug</u> configurations for a project along with
+  optional Klocwork analysis on the Debug configuration and Doxygen generation.</div>
+<br/>
+<div>Supported Versions:
+  <ul>
+    <li><b>VC 9.0</b> - Visual Studio 2008</li>
+    <li><b>VC 10.0</b> - Visual Studio 2010</li>
+    <li><b>VC 12.0</b> - Visual Studio 2013</li>
+  </ul>
+</div>
+<div>Optional Variables: (Defaults are <b>bold</b>)
+  <ul>
+    <li><b>VCARC</b> - [<b>x86</b>|x64|...] - The target processor architecture.</li>
+    <li><b>VCVER</b> - [90|100|<b>120</b>] - The compiler version to use.</li>
+    <li><b>VCLOG</b> - [q[uiet]|m[inimal]|n[ormal]|<b>d[etailed]</b>|diag[nostic]] - The verbosity of the logging.</li>
+    <li><b>KLOCWORK</b> - [<b>NO</b>|YES] - Run Klocwork analysis on the project?</li>
+    <li><b>KWIMPORT</b> - (Default Blank) SVN URL containing Klocwork configuration files to import.</li>
+    <li><b>DOXYGEN</b> - [<b>NO</b>|YES] - Run Doxygen on the project?</li>
+  </ul>
+</div>
+<div>Build Variables:
+  <ul>
+    <li><b>INCLUDE</b> - Search list for header (.h) files.</li>
+    <li><b>LIB</b> - Search list for static library (.lib) and type library (.tlb) files.</li>
+    <li><b>LIBPATH</b> - (a.k.a. Reference Path) Search list for dynamic library (.dll) files for import.</li>
+    <li><b>PATH</b> - (a.k.a. Executable Path) Search list for dynamic library (.dll) files for reference.</li>
+  </ul>
+</div>
+<div>
+  <b>See the CopyEndStates job for any other details.</b>
+</div>
+<br/>
+<div>
+  <b><span style="color:red">Note: <a href="https://issues.jenkins-ci.org/browse/JENKINS-7478">
+    Jenkins does not properly support Firefox and Chrome.</a></span>
+    <br/>
+    Therefore, only edit this job using IE; otherwise, the batch script will be broken.</b>
+</div>
