@@ -1,14 +1,18 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+rem TODO
+rem Add support to check in XML reports [Klocwork, MSBuild, Doxygen] to the repo.
+
 rem Find the Project
 call :FindProject "*.csproj *.vcxproj *.vcproj" || goto End
 
 rem Default to x86, Visual Studio 2013, and no Klocwork
 call :Expand VCARC %VCARC% x86
 call :Expand VCVER %VCVER% 120
+call :Expand VCLOG %VCLOG% d
 call :Expand KLOCWORK %KLOCWORK% NO
-call :Expand VCLOG %VCLOG% normal
+call :Expand KWIMPORT %KWIMPORT% http://scm.domain.com/svn/trunk/tools/Klocwork
 
 rem Adjust Defaults based on Project Type
 if /i "%PROJECT_EXT%"==".vcproj" set "VCVER=90"
@@ -21,7 +25,10 @@ call :Build Release %VCVER% %VCLOG% || goto End
 call :Build Debug %VCVER% %VCLOG% || goto End
 
 rem Run Klocwork Analysis
-call :Klocwork Debug %VCVER% %VCLOG% %PROJECT% || goto End
+call :Klocwork Debug %VCVER% %VCLOG% %PROJECT% %KWIMPORT% || goto End
+
+rem Save Generated Reports
+rem call :CommitReports || goto End
 
 :End
 echo.
@@ -29,25 +36,76 @@ echo Exit Code = %ErrorLevel%
 @echo on & @endlocal & @exit /b %ErrorLevel%
 
 
-:Klocwork <Configuration> <Version> <Verbosity> <Project>
+:CommitReports
+call :SVNCommit KlocworkReport.xml MSBuildRelease.log MSBuildDebug.log
+exit /b %ErrorLevel%
+
+
+:SVNCommit <File[s]>
+@svn ci -q -N -m "[Jenkins] @%SVN_REVISION% Build logs invoked by %BUILD_USER_ID%" --username "User" --password "%User%" %*
+exit /b %ErrorLevel%
+
+
+:Klocwork <Configuration> <Version> <Verbosity> <Project> [Import URL]
 rem Check for Klocwork Flag
 if not defined Klocwork exit /b 0
 if /i not "%Klocwork:~0,1%"=="y" exit /b 0
-echo Running Klocwork Analysis...
 rem Clean standalone caches
 if not exist .kwlp rd /S /Q .kwps 2>nul
 if not exist .kwps rd /S /Q .kwlp 2>nul
 rem Create Local Klocwork Project
-kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC 2>nul || kwcheck sync
+rem kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC
+rem kwcheck create --license-host ipvmfactorylic4 --license-port 27000
+rem call :KlocworkImportSVN "%~5" Klocwork
+rem Create Hybrid Klocwork Project
+call :KlocworkHybrid
 kwcheck info
 rem Run Klocwork Build Injector
-call :IsSharp %4 && ( call :KlocworkSharpInject %1 %2 %4 || exit /b 5 ) || ( call :Build %1 %2 %3 kwinject || exit /b 1 )
+echo Running Klocwork Analysis...
+call :IsSharp %4 && ( call :KlocworkSharpInject %1 %2 %4 || exit /b 5 )
+call :IsSharp %4 || ( call :Build %1 %2 %3 kwinject || exit /b 1 )
 rem Run Klocwork Analysis, and Report Generators
 kwcheck run -b kwinject.out || exit /b 2
 kwcheck list -F xml --report KlocworkReport.xml || exit /b 3
 kwcheck list -F detailed --report KlocworkTraceReport.txt || exit /b 4
 echo Klockwork Analysis succeeded.
 exit /b %ErrorLevel%
+
+
+rem The Hybrid project is a workaround for the failure of the --url create method.
+rem This allows for the server configuration to be downloaded onto a local project.
+:KlocworkHybrid [Import URL]
+rem Create Local Klocwork Project
+echo Creating Local Project...
+kwcheck create --license-host machinename --license-port 27000
+rem Download Server Klocwork Project
+md Klocwork || exit /b 1
+pushd Klocwork || exit /b 2
+echo Downloading Klocwork Server Configuration...
+kwcheck create --url http://ipklocworkdb:80/Project
+popd
+rem Import Server Configuration and Cleanup
+call :KlocworkImport Klocwork\.kwps\servercache
+rd /Q /S Klocwork
+rem Import Custom Configuration
+call :KlocworkImportSVN "%~1" Klocwork "*.mconf *.pconf *.tconf"
+exit /b 0
+
+
+:KlocworkImport <Source> [Configurations]
+setlocal
+call :Expand Filters %2 "*.kb *.mconf *.pconf *.tconf"
+echo Importing Klocwork Rules...
+for /f "delims=" %%A in ('"pushd %1 && dir /a-d /b %Filters% & popd"') do kwcheck import "%~1\%%~A" && echo Imported %%~nxA || Skipped %%~nxA
+endlocal & exit /b 0
+
+
+:KlocworkImportSVN <SVN URL> <Target> [Configurations]
+call :Defined %1 || exit /b 1
+svn co %1 %2 || exit /b 2
+call :KlocworkImport %2 %3
+rd /Q /S %2 || exit /b 4
+exit /b 0
 
 
 :KlocworkSharpInject <Configuration> <Version> <Project>
@@ -102,7 +160,7 @@ if "%~2"=="100" set "ToolsVersion=4.0 /p:TargetFrameworkVersion=v3.5"
 if "%~2"=="120" set "ToolsVersion=12.0"
 set "Dbg=" & rem if /i "%~1"=="Debug" set "Dbg=/p:WarningLevel=4"
 set "Command=MSBuild /tv:%ToolsVersion% /p:PlatformToolset=v%~2 /p:Configuration=%~1 /p:OutDir=%~1\ /p:IntDir=%~1\ /p:IncludePath="%INCLUDE%" /p:LibraryPath="%LIB%" /p:ReferencePath="%LIBPATH%"" %Dbg% /m /v:%~3 /ignore:.sln
-call :Defined %4 && set "Command=%Command:"=\"% /nr:false /t:Rebuild"
+call :Defined %4 && set "Command=%Command:"=\"% /nr:false /t:Rebuild" || set "Command=%Command% /flp:LogFile="MSBuild%~1.log";Encoding=UTF-8"
 @echo on
 %~4 %Command%
 @echo off
@@ -112,7 +170,7 @@ endlocal & exit /b %ErrorLevel%
 rem devenv /Build "%~1" /useenv
 :VCBuild <Configuration> [Klocwork]
 setlocal
-set "Command=VCBuild /M /time /useenv "%~1""
+set "Command=VCBuild /logfile:"MSBuild%~1.log" /M /time /useenv "%~1""
 call :Defined %3 && set "Command=%Command:"=\"% /rebuild"
 @echo on
 %~3 %Command%
