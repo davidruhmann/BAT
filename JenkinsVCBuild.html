@@ -1,22 +1,45 @@
 <div><b>Template job. Do not build! Do not edit!</b></div>
 <br/>
-<div>Visual C++ and C# Builder Job.  Builds the <u>Release</u> and <u>Debug</u> configurations for a project along with
-  optional Klocwork analysis on the Debug configuration and Doxygen generation.</div>
+<div>Visual C++ and C# Builder Job.  Builds the <u>Release</u> and <u>Debug</u> configurations for a project along with optional
+  Code Analysis. An optional Klocwork analysis can be run on the Debug configuration and Doxygen generated for the project.</div>
 <br/>
+<div>Usage Instructions:
+  <ul>
+    <li>Build > Use builders from another project > VCBuild</li>
+    <li>Post-build Actions > Use publishers from another project > VCBuild</li>
+    <li>Set any Environment Variables if non-defaults are desired</li>
+    <li>Defaults are overwritten based upon Node Labels specified.</li>
+  </ul>
+</div>
 <div>Supported Versions:
   <ul>
-    <li><b>VC 9.0</b> - Visual Studio 2008</li>
+    <li><b>VC 9.0</b> - Visual Studio 2008 (for MillenniumMobile Only)</li>
     <li><b>VC 10.0</b> - Visual Studio 2010</li>
     <li><b>VC 12.0</b> - Visual Studio 2013</li>
+  </ul>
+</div>
+<div>Supported Labels:
+  <ul>
+    <li><b>VS2008</b> - Visual Studio 2008 compatible node. This will default VCVER to 90.</li>
+    <li><b>VS2010</b> - Visual Studio 2010 compatible node. This will default VCVER to 100.</li>
+    <li><b>VS2013</b> - Visual Studio 2013 compatible node. This will default VCVER to 130.</li>
+    <li><b>KLOCWORK</b> - Klocwork v10 compatible node. This will default KLOCWORK to YES.</li>
+	<!--<li><b>DOXYGEN</b> - Doxygen 1.8 compatible node. This will default DOXYGEN to YES.</li>-->
   </ul>
 </div>
 <div>Optional Variables: (Defaults are <b>bold</b>)
   <ul>
     <li><b>VCARC</b> - [<b>x86</b>|x64|...] - The target processor architecture.</li>
     <li><b>VCVER</b> - [90|100|<b>120</b>] - The compiler version to use.</li>
-    <li><b>VCLOG</b> - [q[uiet]|m[inimal]|n[ormal]|<b>d[etailed]</b>|diag[nostic]] - The verbosity of the logging.</li>
+    <li><b>VCLOG</b> - [q[uiet]|m[inimal]|<b>n[ormal]</b>|d[etailed]|diag[nostic]] - The verbosity of the logging.</li>
+    <li><b>VCCON</b> - [<b>Release;Debug</b>] - Semi-colon delimited list of configurations to build.</li>
+    <li><b>VCCAN</b> - [<b>NO</b>|YES] - Run Microsoft Code Analysis on the project.</li>
+    <li><b>VCCAR</b> - [<b>*RecommendedRules.ruleset</b>] Code Analysis Rule Set to use.</li>
+    <!--<li><b>VCFIX</b> - Temporary fix for projects with bad settings.</li>-->
     <li><b>KLOCWORK</b> - [<b>NO</b>|YES] - Run Klocwork analysis on the project?</li>
-    <li><b>KWIMPORT</b> - (Default Blank) SVN URL containing Klocwork configuration files to import.</li>
+    <!--<li><b>KWIMPORT</b> - (Default Blank) SVN URL containing Klocwork configuration files to import.</li>-->
+    <!--<li><b>KWPUBLISH</b> - [NO|<b>YES</b>] - Publish Klocwork XML report to 
+      (<a href="http://build2.nursing.cerner.corp/Klocwork/">build2.nursing.cerner.corp/Klocwork/</a>)?</li>-->
     <li><b>DOXYGEN</b> - [<b>NO</b>|YES] - Run Doxygen on the project?</li>
   </ul>
 </div>
@@ -28,13 +51,36 @@
     <li><b>PATH</b> - (a.k.a. Executable Path) Search list for dynamic library (.dll) files for reference.</li>
   </ul>
 </div>
+<div>Klocwork Details:
+  <ul>
+    <li>New issues will make a trunk job unstable and will fail branch jobs.</li>
+  </ul>
+</div>
 <div>
-  <b>See the CopyEndStates job for any other details.</b>
+  <img src="http://build2.nursing.cerner.corp/Images/famfamfam/information.png"/> <b>See the <a href="http://build2.nursing.cerner.corp/jenkins/job/CopyEndstates/">CopyEndStates</a> and
+    <a href="http://build2.nursing.cerner.corp/jenkins/view/Builders/job/CopyReports/">CopyReports</a> jobs for any other details.</b>
 </div>
 <br/>
+<br/>
 <div>
-  <b><span style="color:red">Note: <a href="https://issues.jenkins-ci.org/browse/JENKINS-7478">
-    Jenkins does not properly support Firefox and Chrome.</a></span>
-    <br/>
-    Therefore, only edit this job using IE; otherwise, the batch script will be broken.</b>
+  <table>
+    <tr>
+      <th></th>
+      <th>Issue</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td><img src="http://build2.nursing.cerner.corp/Images/famfamfam/delete.png"/></td>
+      <td><a href="https://issues.jenkins-ci.org/browse/JENKINS-14786">JENKINS-14786</a></td>
+      <td>Klocwork Plugin for Jenkins throws exception when Build or Parse log is used with slaves.
+        <br/>Do not enable Build or Parse logs for the Klocwork Plugin!</td>
+    </tr>
+    <tr>
+      <td><img src="http://build2.nursing.cerner.corp/Images/famfamfam/error.png"/></td>
+      <td><a href="https://issues.jenkins-ci.org/browse/JENKINS-7478">JENKINS-7478</a></td>
+      <td>Jenkins does not properly support non-IE browsers with multi-line text boxes.
+        <br/>Only edit this job using IE; otherwise, the script will not work!</td>
+    </tr>
+  </table>
 </div>
+<br/>
