@@ -1,86 +1,69 @@
-<div><b>Template job. Do not build! Do not edit!</b></div>
-<br/>
-<div>Visual C++ and C# Builder Job.  Builds the <u>Release</u> and <u>Debug</u> configurations for a project along with optional
-  Code Analysis. An optional Klocwork analysis can be run on the Debug configuration and Doxygen generated for the project.</div>
-<br/>
-<div>Usage Instructions:
-  <ul>
-    <li>Build > Use builders from another project > VCBuild</li>
-    <li>Post-build Actions > Use publishers from another project > VCBuild</li>
-    <li>Set any Environment Variables if non-defaults are desired</li>
-    <li>Defaults are overwritten based upon Node Labels specified.</li>
-  </ul>
-</div>
-<div>Supported Versions:
-  <ul>
-    <li><b>VC 9.0</b> - Visual Studio 2008 (for Windows Mobile Only)</li>
-    <li><b>VC 10.0</b> - Visual Studio 2010</li>
-    <li><b>VC 12.0</b> - Visual Studio 2013</li>
-  </ul>
-</div>
-<div>Supported Labels:
-  <ul>
-    <li><b>VS2008</b> - Visual Studio 2008 compatible node. This will default VCVER to 90.</li>
-    <li><b>VS2010</b> - Visual Studio 2010 compatible node. This will default VCVER to 100.</li>
-    <li><b>VS2013</b> - Visual Studio 2013 compatible node. This will default VCVER to 130.</li>
-    <li><b>KLOCWORK</b> - Klocwork v10 compatible node. This will default KLOCWORK to YES.</li>
-	<!--<li><b>DOXYGEN</b> - Doxygen 1.8 compatible node. This will default DOXYGEN to YES.</li>-->
-  </ul>
-</div>
-<div>Optional Variables: (Defaults are <b>bold</b>)
-  <ul>
-    <li><b>VCARC</b> - [<b>x86</b>|x64|...] - The target processor architecture.</li>
-    <li><b>VCVER</b> - [90|100|<b>120</b>] - The compiler version to use.</li>
-    <li><b>VCLOG</b> - [q[uiet]|m[inimal]|<b>n[ormal]</b>|d[etailed]|diag[nostic]] - The verbosity of the logging.</li>
-    <li><b>VCCON</b> - [<b>Release;Debug</b>] - Semi-colon delimited list of configurations to build.</li>
-    <li><b>VCCAN</b> - [<b>NO</b>|YES] - Run Microsoft Code Analysis on the project.</li>
-    <li><b>VCCAR</b> - [<b>*RecommendedRules.ruleset</b>] Code Analysis Rule Set to use.</li>
-    <!--<li><b>VCFIX</b> - Temporary fix for projects with bad settings.</li>-->
-    <li><b>KLOCWORK</b> - [<b>NO</b>|YES] - Run Klocwork analysis on the project?</li>
-    <!--<li><b>KWIMPORT</b> - (Default Blank) SVN URL containing Klocwork configuration files to import.</li>-->
-    <!--<li><b>KWPUBLISH</b> - [NO|<b>YES</b>] - Publish Klocwork XML report to 
-      (<a href="http://build2.nursing.cerner.corp/Klocwork/">build2.nursing.cerner.corp/Klocwork/</a>)?</li>-->
-    <li><b>DOXYGEN</b> - [<b>NO</b>|YES] - Run Doxygen on the project?</li>
-  </ul>
-</div>
-<div>Build Variables:
-  <ul>
-    <li><b>INCLUDE</b> - Search list for header (.h) files.</li>
-    <li><b>LIB</b> - Search list for static library (.lib) and type library (.tlb) files.</li>
-    <li><b>LIBPATH</b> - (a.k.a. Reference Path) Search list for dynamic library (.dll) files for import.</li>
-    <li><b>PATH</b> - (a.k.a. Executable Path) Search list for dynamic library (.dll) files for reference.</li>
-  </ul>
-</div>
-<div>Klocwork Details:
-  <ul>
-    <li>New issues will make a trunk job unstable and will fail branch jobs.</li>
-  </ul>
-</div>
-<div>
-  <img src="http://build.url.com/Images/famfamfam/information.png"/> <b>See the <a href="http://build.url.com/jenkins/job/CopyEndstates/">CopyEndStates</a> and
-    <a href="http://build.url.com/jenkins/view/Builders/job/CopyReports/">CopyReports</a> jobs for any other details.</b>
-</div>
-<br/>
-<br/>
-<div>
-  <table>
-    <tr>
-      <th></th>
-      <th>Issue</th>
-      <th>Description</th>
-    </tr>
-    <tr>
-      <td><img src="http://build.url.com/Images/famfamfam/delete.png"/></td>
-      <td><a href="https://issues.jenkins-ci.org/browse/JENKINS-14786">JENKINS-14786</a></td>
-      <td>Klocwork Plugin for Jenkins throws exception when Build or Parse log is used with slaves.
-        <br/>Do not enable Build or Parse logs for the Klocwork Plugin!</td>
-    </tr>
-    <tr>
-      <td><img src="http://build.url.com/Images/famfamfam/error.png"/></td>
-      <td><a href="https://issues.jenkins-ci.org/browse/JENKINS-7478">JENKINS-7478</a></td>
-      <td>Jenkins does not properly support non-IE browsers with multi-line text boxes.
-        <br/>Only edit this job using IE; otherwise, the script will not work!</td>
-    </tr>
-  </table>
-</div>
-<br/>
+<div class="wiki-content">
+           <!-- wiki content -->
+            <div class="panel" style="background-color: #D8E4F1;border-width: 1px;"><div class="panelContent" style="background-color: #D8E4F1;">
+<p><span class="image-wrap" style=""><img src="/download/attachments/1289389232/information.png?version=1&amp;modificationDate=1409179324000" style="border: 0px solid black"></span> See the <a href="/pages/createpage.action?spaceKey=associates&amp;title=CopyEndStates&amp;linkCreation=true&amp;fromPageId=1289389232" class="createlink">associates:CopyEndStates</a>, <a href="/pages/createpage.action?spaceKey=associates&amp;title=CopyReports&amp;linkCreation=true&amp;fromPageId=1289389232" class="createlink">associates:CopyReports</a>, and <a class="ucern-link" href="/display/associates/VCDoxygen">VCDoxygen</a> jobs for additional details.</p>
+</div></div>
+
+<h2><a name="VCBuild-VisualCandC%23BuilderJob"></a>Visual C++ and C# Builder Job</h2>
+<p>Works as a MSBuild and Klocwork manager, simplifying the complex relations between the tool versions and options. The script has been optimized to require no additional input from the user for the default scenario. See all the following details and options for utilizing the full functionality of this script.</p>
+
+<h3><a name="VCBuild-UsageInstructions"></a>Usage Instructions</h3>
+<ul>
+	<li>Build &gt; Use builders from another project &gt; VCBuild</li>
+	<li>Post-build Actions &gt; Use publishers from another project &gt; VCBuild</li>
+	<li>Set any Environment Variables if non-defaults are desired</li>
+</ul>
+
+
+<h3><a name="VCBuild-SupportedVersions"></a>Supported Versions</h3>
+<ul>
+	<li><b>Visual Studio 2008</b> - 9.0</li>
+	<li><b>Visual Studio 2010</b> - 10.0</li>
+	<li><b>Visual Studio 2012</b> - 11.0</li>
+	<li><b>Visual Studio 2013</b> - 12.0</li>
+	<li><b>Klocwork 9.6 or 10</b></li>
+</ul>
+
+
+<h3><a name="VCBuild-SupportedLabels"></a>Supported Labels</h3>
+<ul>
+	<li><b>VS2008</b> - Visual Studio 2008 compatible node. This will default VCVER to <b>90</b>.</li>
+	<li><b>VS2010</b> - Visual Studio 2010 compatible node. This will default VCVER to <b>100</b>.</li>
+	<li><b>VS2012</b> - Visual Studio 2012 compatible node. This will default VCVER to <b>110</b>.</li>
+	<li><b>VS2013</b> - Visual Studio 2013 compatible node. This will default VCVER to <b>120</b>.</li>
+	<li><b>KLOCWORK</b> - Klocwork 9.6+ compatible node. This will default KLOCWORK to <b>YES</b>.</li>
+	<li><b>DOXYGEN</b> - Doxygen 1.8+ compatible node. This will default DOXYGEN to <b>YES</b>.</li>
+</ul>
+
+
+<h3><a name="VCBuild-OptionalVariables"></a>Optional Variables</h3>
+<blockquote><p>(Defaults are <b>bold</b>)</p></blockquote>
+<ul>
+	<li><b>VCARC</b> - [ <b>x86</b> | x64 | ... ] - The target processor architecture.</li>
+	<li><b>VCVER</b> - [ 90 | 100 | 110 | <b>120</b> ] - The compiler version to use.</li>
+	<li><b>VCLOG</b> - [ q[uiet] | m[inimal] | <b>n[ormal]</b> | d[etailed] | diag[nostic] ] - The verbosity of the logging.</li>
+	<li><b>VCCON</b> - [ <b>Release;Debug</b> ] - Semi-colon delimited list of configurations to build.</li>
+	<li><b>VCCAN</b> - [ <b>NO</b> | YES ] - Run Microsoft Code Analysis on the project.</li>
+	<li><b>VCCAR</b> - [ <b>*RecommendedRules.ruleset</b> ] Code Analysis Rule Set to use.</li>
+	<li><b>KLOCWORK</b> - [ <b>NO</b> | YES ] - Run Klocwork analysis on the project?</li>
+	<li><b>DOXYGEN</b> - [ <b>NO</b> | YES ] - Run Doxygen on the project?</li>
+	<li><b>PIPELINE</b> - [ <b>Solution-Test</b> | 2012.01_SVC-ENG | 2015.01_SVC-ENG ]</li>
+</ul>
+
+
+<h3><a name="VCBuild-BuildVariables"></a>Build Variables</h3>
+<blockquote><p>Only edit if you understand how these variables work</p></blockquote>
+<ul>
+	<li><b>INCLUDE</b> - Search list for header (.h) files.</li>
+	<li><b>LIB</b> - Search list for static library (.lib) and type library (.tlb) files.</li>
+	<li><b>LIBPATH</b> - (a.k.a. Reference Path) Search list for dynamic library (.dll) files for import.</li>
+	<li><b>PATH</b> - (a.k.a. Executable Path) Search list for dynamic library (.dll) files for reference.</li>
+	<li><b>REPOSITORY</b> - Warehouse and Pipeline path to reference in the build.</li>
+</ul>
+
+
+<h3><a name="VCBuild-KlocworkDetails"></a>Klocwork Details</h3>
+<ul>
+	<li>New issues will make a trunk job unstable and will fail branch jobs.</li>
+</ul>
+        </div>
