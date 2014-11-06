@@ -2,7 +2,7 @@
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::LICENSE
 :: Batch Framework for Windows
-:: Copyright (c) 2013 David Ruhmann
+:: Copyright (c) 2013-2014 David Ruhmann
 ::
 :: Permission is hereby granted, free of charge, to any person obtaining a copy
 :: of this software and associated documentation files (the "Software"), to deal
@@ -196,6 +196,18 @@ exit /b %ErrorLevel%
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: check if the value is true = "true", "yes", "y", or non zero unless zero?
+:Assert <Value> [Zero?]
+call :Defined %1 || exit /b 1
+if /i "%~1"=="true" exit /b 0
+if /i "%~1"=="yes" exit /b 0
+if /i "%~1"=="y" exit /b 0
+call :IsNumber %1 || exit /b 1
+call :Defined %2 && if %~1 equ 0 exit /b 0 || if %~1 neq 0 exit /b 0
+exit /b 0
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :Base64Decode <Input> <OutputVar>
 call :Base64DecodePS %1 %2
 exit /b %ErrorLevel%
@@ -345,6 +357,11 @@ makecab %1 %2 >nul 2>&1
 exit /b %ErrorLevel%
 
 
+:Define <Var> [Value] [Default]
+2>nul set "%~1=%~2"
+if defined %~1 = exit /b 0
+exit /b 1
+
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :Defined <Input>
@@ -352,6 +369,12 @@ setlocal
 set "Input=%~1"
 if defined Input endlocal & exit /b 0
 endlocal & exit /b 1
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:Defined? <Input>
+for /f "delims=" %%A in ("%~1") do exit /b 0
+exit /b 1
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -488,6 +511,19 @@ set "Args=%Args:"=""%"
 PowerShell -Command $env:Note = 'Elevate'; (New-Object -com 'Shell.Application').ShellExecute('cmd.exe', '/k %Args%', '', 'runas') 2>nul
 endlocal & ( exit /b %ErrorLevel% )
 
+if ((new-object System.Security.Principal.WindowsPrincipal([System.Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) { exit 0; }; exit 1;
+
+& {
+  $wid=[System.Security.Principal.WindowsIdentity]::GetCurrent()
+  $prp=new-object System.Security.Principal.WindowsPrincipal($wid)
+  $adm=[System.Security.Principal.WindowsBuiltInRole]::Administrator
+  $IsAdmin=$prp.IsInRole($adm)
+  if ($IsAdmin)
+  {
+    (get-host).UI.RawUI.Backgroundcolor="DarkRed"
+    clear-host
+  }
+}
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: NOTE: "runas" is an undocumented verb for the ShellExecute function.
@@ -587,6 +623,11 @@ if defined %~1 = exit /b 0
 exit /b 1
 
 
+:Expand2 <Var> [Default]
+call :Define %1 "%%%1%%" || call :Define %* || exit /b 1
+exit /b 0
+
+
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :ExtractJS <Zip> <Destination>
 CScript //E:JScript //Nologo "%~f0" Extract "%~f1" "%~f2"
@@ -653,6 +694,12 @@ call :ArchitectureVerbose
 exit /b 0
 
 
+:Input <Var> [Prompt]
+2>nul set /p "%~1=%~2"
+if not defined %~1 = goto Input
+exit /b 0
+
+
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: TODO REFACTOR
 :Installed <Name> [Var]
@@ -685,6 +732,12 @@ set "%1=!%1!"
 set "ErrorLevel=0"
 if defined %1 set "ErrorLevel=3"
 endlocal & exit /b %ErrorLevel%
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:IsNumber <Value> [Delimiters]
+for /f "delims=0123456789%~2" %%A in ("%~1") do exit /b 1
+exit /b 0
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::IO
@@ -862,6 +915,12 @@ exit /b 0
 :: Boolean reversal of the routine result. Useful for testing && || expressions.
 :Not <Routine> [Params...]
 call :%* && exit /b 1 || exit /b 0
+
+
+:!
+:Not2 <Routine> [Options...]
+call %* || exit /b 0
+exit /b 1
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
