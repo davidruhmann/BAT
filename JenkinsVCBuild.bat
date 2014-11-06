@@ -1,9 +1,12 @@
 @echo off
 rem Visual C++ and C# Jenkins Builder Script with Klocwork support
-rem Version: 2014-09-24
+rem Version: 2014-10-14
 rem Requires Klocwork and an SVN client be in the PATH environment variable.
 rem TODO VCRegister for C# CAS might require reading the csproj for dependencies
-rem TODO MillenniumMobile
+rem TODO Finish Windows Mobile support
+rem TODO Add Comments to Scripts and more Logging
+rem TODO vcxproj cleaner OutDir OutputFile etc
+rem TODO Look into using Project Cleaner or VCBuild.proj instead of MSBuild params
 setlocal
 call :GitAdjust
 call :LoadProject || goto End
@@ -21,10 +24,6 @@ rem Adjust Defaults based on Project Type
 if /i "%PROJECT_EXT%"==".vcproj" call :Define VCVER %VCVER% 90
 if /i "%PROJECT_EXT%"==".csproj" call :Define VCCAR %VCCAR% MinimumRecommendedRules.ruleset
 rem Default to x86, Visual Studio 2013, and no Klocwork
-rem if not defined TRUNK if defined BRANCH set "TRUNK=NO"
-rem call :Define TRUNK %TRUNK% YES
-rem call :Define SKIRT %SKIRT% NO
-rem call :Define PLAIN %PLAIN% NO
 call :Define VCARC %VCARC% x86
 call :Define VCVER %VCVER% %LABEL_VS2013% %LABEL_VS2012% %LABEL_VS2010% %LABEL_VS2008% 120
 call :Define VCLOG %VCLOG% n
@@ -59,7 +58,7 @@ exit /b 1 {CACHE} {PIPELINE}
 echo %SVN_URL% |findstr /i "branches" 2>nul && call :ParseBranch "%SVN_URL:branches= %" && exit /b 0
 echo %SVN_URL% |findstr /i "tags" 2>nul && call :ParseBranch "%SVN_URL:tags= %" && exit /b 0
 echo %SVN_URL% |findstr /i "sandbox" 2>nul && call :ParseBranch "%SVN_URL:sandbox= %" && exit /b 0
-echo %SVN_URL% |findstr /i "pipelines" 2>nul && call :ParseBranch "%SVN_URL:pipelines= %" && exit /b 0
+rem echo %SVN_URL% |findstr /i "pipelines" 2>nul && call :ParseBranch "%SVN_URL:pipelines= %" && exit /b 0
 exit /b 1
 
 
@@ -122,20 +121,26 @@ if %ErrorLevel% neq 0 echo [ERROR] Status Code = %ErrorLevel%
 exit /b %ErrorLevel%
 
 
-:: Note: the --url needs to be updated before use on a new server.
-:Klocwork <Configuration> <Version> <Verbosity> <Project> [Import URL] ~IO/UI
+:Klocwork <Configuration> <Version> <Verbosity> <Project> [Import URL] {JOB_NAME} {KLOCWORK_CACHE} ~IO/UI
 rem Clean Existing Reports
 del /F /Q KlocworkReport.xml 2>nul
-del /F /Q KlocworkTraceReport.txt 2>nul
+del /F /Q KlocworkReport.txt 2>nul
+del /F /Q KlocworkReport.csv 2>nul
 rem Check for Klocwork Flag
 call :IsTrue Klocwork || exit /b 0
-rem Clean standalone caches
-if not exist .kwlp rd /S /Q .kwps 2>nul
-if not exist .kwps rd /S /Q .kwlp 2>nul
+rem Clean Existing Caches
+rd /S /Q .kwps 2>nul
+rd /S /Q .kwlp 2>nul
+echo [INFO] Retrieving Klocwork Cache...
+xcopy "%KLOCWORK_CACHE%\%JOB_NAME%\.kwps" ".kwps\" /I /H /Q /E /Y >nul 2>&1
+xcopy "%KLOCWORK_CACHE%\%JOB_NAME%\.kwlp" ".kwlp\" /I /H /Q /E /Y >nul 2>&1
 rem Create Local Klocwork Project
 echo [INFO] Connecting to Klocwork Server...
 kwcheck create --url http://ipklocworkdb:80/FrontEnd_VC || kwcheck sync
 rem call :KlocworkImportSVN "%~5" Klocwork
+rem Fix for issue caused by missing folders
+md ".kwps\localconfig\ckbs" 2>nul
+md ".kwps\localconfig\jkbs" 2>nul
 kwcheck info
 rem Run Klocwork Build Injector
 echo [INFO] Running Klocwork Build Injection...
@@ -145,10 +150,15 @@ rem Run Klocwork Analysis, and Report Generators
 echo [INFO] Running Klocwork Analysis...
 kwcheck run -y -b kwinject.out || exit /b 2
 kwcheck list -y -F xml --report KlocworkReport.xml || exit /b 3
-kwcheck list -y -F detailed --report KlocworkTraceReport.txt || exit /b 4
+kwcheck list -y -F detailed --report KlocworkReport.txt || exit /b 4
+kwcheck list -y -F scriptable --report KlocworkReport.csv || exit /b 5xc
+echo [INFO] Klocwork Analysis succeeded
+echo [INFO] Storing Klocwork Cache...
+rd /S /Q "%KLOCWORK_CACHE%\%JOB_NAME%" 2>nul
+xcopy ".kwps" "%KLOCWORK_CACHE%\%JOB_NAME%\.kwps\" /I /H /Q /E /Y >nul 2>&1
+xcopy ".kwlp" "%KLOCWORK_CACHE%\%JOB_NAME%\.kwlp\" /I /H /Q /E /Y >nul 2>&1
 kwcheck sync
-echo [INFO] Klockwork Analysis succeeded.
-rem Cleanup cache since slaves have very limited space
+rem Remove Local Caches
 rd /S /Q .kwps 2>nul
 rd /S /Q .kwlp 2>nul
 exit /b %ErrorLevel%
@@ -210,6 +220,24 @@ echo [ERROR] No project file found. Supported Types = %~1
 exit /b 1 : {PROJECT} {PROJECT_EXT} {PROJECT_NAME}
 
 
+::WIP
+:FixVCXProj <File>
+xcopy "%~1" "%~1.ori" /Y /Q >nul 2>&1
+> "%~1" set /p "=" < nul
+setlocal EnableDelayedExpansion
+for /f "usebackq delims=" %%A in ("%~1.ori") do set "_=%%A" & call :_FixVCXProj >> "%~1"
+endlocal & exit /b %ErrorLevel%
+:_FixVCXProj {_}
+echo !_!|find "</Project>" >nul && call :__FixVCXProj
+rem echo !_!|find /v "OutDir"|find /v "OutputFile"|find /v "OutputPath"
+echo !_!
+exit /b %ErrorLevel%
+:__FixVCXProj
+set "__=<Import Project="$(ProjectDir)\VCBuild.targets" />"
+echo !__!
+exit /b %ErrorLevel%
+
+
 :Build <Configuration> <Version> <Verbosity> <Code Analysis> <Rule Set> [Klocwork] {KLOCWORK} {PROJECT}
 setlocal
 call :Define VCBIN %1
@@ -233,8 +261,8 @@ md %1 2>nul
 @echo off > "%~1\regsvr32.trg"
 rem Specify Special Version Specific Options
 set "ToolsVersion="
-if "%~2"=="120" set "ToolsVersion=/m /ignore:.sln /nr:false /tv:12.0 /flp:LogFile="MSBuild%~1%~6.log""
-if "%~2"=="110" set "ToolsVersion=/m /ignore:.sln /nr:false /tv:11.0 /flp:LogFile="MSBuild%~1%~6.log""
+if "%~2"=="120" set "ToolsVersion=/m /ignore:.sln /nr:false /tv:12.0 /flp:LogFile="MSBuild%~1.log""
+if "%~2"=="110" set "ToolsVersion=/m /ignore:.sln /nr:false /tv:11.0 /flp:LogFile="MSBuild%~1.log""
 if "%~2"=="100" set "ToolsVersion=/m /ignore:.sln /nr:false /tv:4.0 /p:TargetFrameworkVersion=v3.5"
 if "%~2"=="90"  set "ToolsVersion="
 rem Enable Debug Build Code Analysis but not on Klocwork Debug Builds
@@ -256,6 +284,8 @@ endlocal & exit /b %ErrorLevel%
 rem devenv /Build "%~1" /useenv
 :VCBuild <Configuration> [Klocwork] ~IO/UI
 setlocal
+echo [INFO] INCLUDE = %INCLUDE%
+echo [INFO] LIB = %LIB%
 set "Command=VCBuild /logfile:"MSBuild%~1.log" /M /time /u "%~1""
 call :Defined %3 && set "Command=%Command:"=\"% /rebuild"
 @echo on
