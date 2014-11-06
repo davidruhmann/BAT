@@ -38,6 +38,10 @@
 ::   See TODOs in this script.
 ::   Add Dave Benham's JScript Hybrid REPL.BAT
 ::   net user /domain %username%
+:: 2014-11-06
+::   Added Input Routines
+::   Added ! Routine
+::   Added Define Routine
 :: 2014-04-24
 ::   Enhanced Expand Routine
 :: 2013-03-17
@@ -694,10 +698,17 @@ call :ArchitectureVerbose
 exit /b 0
 
 
+:: Prompt once for input and return a status code
 :Input <Var> [Prompt]
 2>nul set /p "%~1=%~2"
-if not defined %~1 = goto Input
-exit /b 0
+if defined %~1 = exit /b 0
+exit /b 1
+
+:: Continually prompt until input is given
+:InputLoop <Var> [Prompt]
+2>nul set /p "%~1=%~2"
+if defined %~1 exit /b 0 2>nul || exit /b 1
+goto Input
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
