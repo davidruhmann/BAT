@@ -42,9 +42,9 @@ set "file_android_adb_log=%Temp%\android-adb.log"
 set "file_android_sdk=%Temp%\AndroidSDK.exe"
 set "file_android_sdk_log=%Temp%\android-sdk.log"
 set "file_android_sdk_script=%path_android_sdk%\tools\android.bat"
-set "url_android_sdk=http://dl.google.com/android/installer_r23.0.2-windows.exe"
+set "url_android_sdk=http://dl.google.com/android/installer_r24.0.1-windows.exe"
 set "opt_android_nullsoft=/D=%path_android_sdk%"
-set "opt_android_sdk_packages=1,2,3,109,120"
+set "opt_android_sdk_packages=1,2,3,4,5,21,35,36,37,53,54,55,57,65"
 :: Android SDK and ADB
 call :Download "%url_android_sdk%" "%file_android_sdk%" && call :InstallNullSoft "%file_android_sdk%" "%opt_android_nullsoft%" || call :Abort "Unable to download and install Android SDK"
 echo Updating Android SDK...
