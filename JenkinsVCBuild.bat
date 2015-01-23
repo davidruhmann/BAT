@@ -54,9 +54,7 @@ set "Debug=" & if /i "%~1"=="Debug" set "Debug=YES"
 call :IsTrue Debug && call :IsTrue Klocwork && call :Not :IsSharp %PROJECT% && call :Not :Defined %6 && call :Not :EqualsTrue %4 && (endlocal & exit /b 0)
 call :BuildEnvironment %Debug%
 call :TidyEnvironment
-@echo on
 call :Registration
-@echo off
 if "%~2"=="90" call :VCBuild %1 %6
 if "%~2"=="100" call :MSBuild %1 %2 %3 %4 %5 %6
 if "%~2"=="110" call :MSBuild %1 %2 %3 %4 %5 %6
