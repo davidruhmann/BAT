@@ -14,8 +14,6 @@ endlocal & exit /b %ErrorLevel%
 
 
 :Setup
-call :BuildEnvironment
-call :BuildEnvironment Debug
 for %%A in ("%SystemRoot%\System32\regsvr32.exe") do if exist "%%~fA" ( set "RegSvr32=%%~fA" )
 for %%A in ("%SystemRoot%\RegTLib.exe" "%SystemRoot%\SysWOW64\URTTEMP\RegTLib.exe" "%SystemRoot%\Microsoft.NET\Framework\v2.0.50727\RegTLibv12.exe" "%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\RegTLibv12.exe") do if exist "%%~fA" ( set "RegTLib=%%~fA" )
 for %%A in ("%ProgramFiles%\Microsoft SDKs\Windows" "%ProgramFiles(x86)%\Microsoft SDKs\Windows") do if exist "%%~A" for %%B in ("v7.0A\Bin" "v7.1\Bin" "v7.0A\Bin\NETFX 4.0 Tools" "v7.1\Bin\NETFX 4.0 Tools" "v8.0A\bin\NETFX 4.0 Tools" "v8.1A\bin\NETFX 4.5.1 Tools") if exist "%%~A\%%~B\TlbImp.exe" ( set "TlbImp=%%~A\%%~B\TlbImp.exe" )
@@ -28,28 +26,10 @@ if not defined RegSvcs echo [WARNING] Unable to find RegSvcs
 exit /b 0 {RegTLib} {TlbImp} {RegAsm} {RegSvcs} {RegSvr32}
 
 
-:: setup the build environment list variables from the system
-:BuildEnvironment [Debug Flag] {INCLUDE} {LIB} {LIBPATH} {PATH} {DPATH} {VCINCLUDE} {VCINCLUDED} {VCLIB} {VCLIBD} {VCREFERENCE} {VCREFERENCED} {VCPATH} {VCPATHD}
-:: Update the Environment Variables
-call :Define INCLUDE "%VCINCLUDE%;%INCLUDE%;"
-call :Define LIB "%VCLIB%;%LIB%;"
-call :Define LIBPATH "%VCREFERENCE%;%LIBPATH%;"
-call :Define PATH "%VCPATH%;%PATH%;"
-call :Define DPATH "%PATH%;"
-call :Defined %1 || exit /b 0
-:: Using Debug Environment Variables
-call :Define INCLUDE "%VCINCLUDED%;%INCLUDE%;"
-call :Define LIB "%VCLIBD%;%LIB%;"
-call :Define LIBPATH "%VCREFERENCED%;%LIBPATH%;"
-call :Define PATH "%VCPATHD%;%PATH%;"
-call :Define DPATH "%PATH%;"
-exit /b 0 : {INCLUDE} {LIB} {LIBPATH} {PATH} {DPATH}
-
-
 :Register [Directory;File;List=%CD%]
 setlocal
 call :Define List "%*" "%CD%"
-for %%A in ("%List:;=" "%") do if exist "%%~fA\" ( call :RegisterDirectory "%%~fA" ) else if exist "%%~A" ( call :RegisterFile "%%~A" ) else call :RegisterRelativeFile "%%~A" || echo [INVALID] %%~nA
+for %%A in ("%List:;=" "%") do if exist "%%~fA\" ( call :RegisterDirectory "%%~fA" ) else if exist "%%~fA" ( call :RegisterFile "%%~fA" ) else echo [INVALID] %%~nA
 endlocal & exit /b %ErrorLevel%
 
 
@@ -67,9 +47,6 @@ call :Define Location %1 "%CD%"
 pushd %Location% 2>nul && for /f "delims=" %%A in ('dir a-d /b *.dll *.ocx *.tlb') do call :UnRegisterFile "%%~fA"
 echo [UNREGISTERED DIRECTORY] %~nx1
 popd & endlocal & exit /b %ErrorLevel%
-
-
-:RegisterRelativeFile <File> {}
 
 
 :RegisterFile <File>
