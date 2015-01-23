@@ -511,7 +511,7 @@ exit /b
 :RegisterFirstFile <File> {PATH} {LIBPATH} {LIB}
 setlocal
 set "_=%LIBPATH%;%LIB%;%PATH%"
-call :TidyList _
+call :TidyList _ >nul
 call :RegisterFirstFile_ %1
 endlocal & exit /b %ErrorLevel%
 
@@ -521,15 +521,39 @@ if defined _ for %%A in ("%_:;=" "%") do if exist "%%~A\%~nx1" ( call :RegisterF
 exit /b 1
 
 
-:RegisterDLL <File> {RegAsm} {RegSvcs} {RegSvr32} ~UI/IO
-"%RegSvr32%" /s "%~f1" && echo [REGISTERED SVR] %~n1 || "%RegAsm%" /nologo /silent "%~f1" /tlb:"%~dpn1.tlb" /codebase 2>nul && echo [REGISTERED ASM W/TLB] %~n1 || "%RegAsm%" /nologo /silent "%~f1" /codebase 2>nul && echo [REGISTERED ASM] %~n1 || "%RegSvcs%" /quiet "%~f1" 2>nul && echo [REGISTERED SVCS] %~n1 || echo [SKIPPED] %~n1
+:RegisterASM <File> {RegAsm}
+call :RegisterASMTLB && exit /b
+"%RegAsm%" /nologo /silent "%~f1" /codebase 2>nul && echo [REGISTERED ASM] %~n1
+exit /b
+
+
+:RegisterASMTLB <File> {RegAsm}
+if exist "%~dpn1.tlb" exit /b 1
+"%RegAsm%" /nologo /silent "%~f1" /tlb:"%~dpn1.tlb" /codebase 2>nul && echo [REGISTERED ASM + GENERATED TLB] %~n1
+exit /b
+
+
+:RegisterSVR <File> {RegSvr32}
+"%RegSvr32%" /s "%~f1" && echo [REGISTERED SVR] %~n1
+exit /b
+
+
+:RegisterSVCS <File> {RegSvcs}
+"%RegSvcs%" /quiet "%~f1" 2>nul && echo [REGISTERED SVCS] %~n1
+exit /b
+
+
+:RegisterDLL <File> {RegAsm} {RegSvcs} {RegSvr32} {TlbExp} ~UI/IO
+call :RegisterSVR %1 || call :RegisterASM %1 || call :RegisterSVCS %1 || echo [SKIPPED] %~n1
 if exist "%~dpn1.tlb" call :RegisterTLB "%~dpn1.tlb"
+if not exist "%~dpn1.tlb" "%TlbExp%" "%~f1" /out:"%~dpn1.tlb" /silent 2>nul && echo [EXPORTED TLB] %~n1
 exit /b
 
 
 :RegisterTLB <File> {RegTLib} {TlbImp} ~UI/IO
 "%RegTLib%" "%~1" 2>nul && echo [REGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
 "%TlbImp%" "%~1" /silent 2>nul && echo [IMPORTED TLB] %~n1
+if not exist "%~dpn1.dll" "%TlbImp%" "%~1" /out:"%~dpn1.dll" /silent 2>nul && echo [IMPORTED TLB + GENERATED DLL] %~n1
 exit /b
 
 
