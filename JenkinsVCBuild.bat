@@ -489,12 +489,17 @@ for %%A in ("%List:;=" "%") do ( call :RegisterDirectory "%%~fA" || call :Regist
 endlocal & exit /b %ErrorLevel%
 
 
+:Registered <File> <Message> ~UI
+echo [REGISTERED %~2] "%~f1"
+exit /b
+
+
 :RegisterDirectory [Directory=%CD%] ~UI/IO
 if not exist "%~1\" exit /b 1
 setlocal & echo.
 call :Define Location %1 "%CD%"
 pushd %Location% 2>nul && for /f "delims=" %%A in ('dir a-d /b *.dll *.ocx *.tlb') do call :RegisterFile "%%~fA"
-echo [REGISTERED DIRECTORY] %~nx1
+call :Registered %1 DIRECTORY
 popd & endlocal & exit /b %ErrorLevel%
 
 
@@ -519,39 +524,44 @@ if defined _ for %%A in ("%_:;=" "%") do if exist "%%~A\%~nx1" ( call :RegisterF
 exit /b 1
 
 
-:RegisterASM <File> {RegAsm}
+:RegisterASM <File> {RegAsm} ~UI/IO
 call :RegisterASMTLB && exit /b
-"%RegAsm%" /nologo /silent "%~f1" /codebase 2>nul && echo [REGISTERED ASM] %~n1
+"%RegAsm%" /nologo /silent "%~f1" /codebase 2>nul && call :Registered %1 ASM
 exit /b
 
 
-:RegisterASMTLB <File> {RegAsm}
+:RegisterASMTLB <File> {RegAsm} ~UI/IO
 if exist "%~dpn1.tlb" exit /b 1
-"%RegAsm%" /nologo /silent "%~f1" /tlb:"%~dpn1.tlb" /codebase 2>nul && echo [REGISTERED ASM + GENERATED TLB] %~n1
+"%RegAsm%" /nologo /silent "%~f1" /tlb:"%~dpn1.tlb" /codebase 2>nul && call :Registered %1 "REGISTERED ASM + GENERATED TLB"
 exit /b
 
 
-:RegisterSVR <File> {RegSvr32}
-"%RegSvr32%" /s "%~f1" && echo [REGISTERED SVR] %~n1
+:RegisterSVR <File> {RegSvr32} ~UI/IO
+"%RegSvr32%" /s "%~f1" && call :Registered %1 SVR
 exit /b
 
 
-:RegisterSVCS <File> {RegSvcs}
-"%RegSvcs%" /quiet "%~f1" 2>nul && echo [REGISTERED SVCS] %~n1
+:RegisterSVCS <File> {RegSvcs} ~UI/IO
+"%RegSvcs%" /quiet "%~f1" 2>nul && call :Registered %1 SVCS
 exit /b
 
 
 :RegisterDLL <File> {RegAsm} {RegSvcs} {RegSvr32} {TlbExp} ~UI/IO
-call :RegisterSVR %1 || call :RegisterASM %1 || call :RegisterSVCS %1 || echo [SKIPPED] %~n1
-if exist "%~dpn1.tlb" call :RegisterTLB "%~dpn1.tlb"
-if not exist "%~dpn1.tlb" "%TlbExp%" "%~f1" /out:"%~dpn1.tlb" /silent 2>nul && echo [EXPORTED TLB] %~n1
-exit /b
+call :RegisterSVR %1 || call :RegisterASM %1 || call :RegisterSVCS %1 || call :Registered %1 SKIPPED
+call :RegisterTLB "%~dpn1.tlb" & exit /b %ErrorLevel%
+:: TODO Extract tlbexp into its own explicit workflow as to not interfere with the reg* result
+rem if not exist "%~dpn1.tlb" "%TlbExp%" "%~f1" /out:"%~dpn1.tlb" /silent 2>nul && echo [EXPORTED TLB] "%~f1"
 
 
 :RegisterTLB <File> {RegTLib} {TlbImp} ~UI/IO
-"%RegTLib%" "%~1" 2>nul && echo [REGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
-"%TlbImp%" "%~1" /silent 2>nul && echo [IMPORTED TLB] %~n1
-if not exist "%~dpn1.dll" "%TlbImp%" "%~1" /out:"%~dpn1.dll" /silent 2>nul && echo [IMPORTED TLB + GENERATED DLL] %~n1
+"%RegTLib%" "%~1" 2>nul && call :Registered %1 TLB || call :Registered %1 SKIPPED
+call :RegisterTLBImport %1 & exit /b %ErrorLevel%
+:: TODO Extract tlbimp into its own explicit workflow as to not interfere with the regtlib result
+rem if not exist "%~dpn1.dll" "%TlbImp%" "%~1" /out:"%~dpn1.dll" /silent 2>nul && echo [IMPORTED TLB + GENERATED DLL] "%~f1"
+
+
+:RegisterTLBImport <File> {TlbImp} ~UI/IO
+"%TlbImp%" "%~1" /silent 2>nul && echo [IMPORTED TLB] "%~f1"
 exit /b
 
 
@@ -594,7 +604,7 @@ if not exist "%~1\" exit /b 1
 setlocal & echo.
 call :Define Location %1 "%CD%"
 pushd %Location% 2>nul && for /f "delims=" %%A in ('dir a-d /b *.dll *.ocx *.tlb') do call :UnRegisterFile "%%~fA"
-echo [UNREGISTERED DIRECTORY] %~nx1
+echo [DEREGISTERED DIRECTORY] "%~f1"
 popd & endlocal & exit /b %ErrorLevel%
 
 
@@ -606,11 +616,11 @@ exit /b
 
 
 :UnRegisterDLL <File> {RegAsm} {RegSvcs} {RegSvr32} ~UI/IO
-"%RegSvr32%" /u /s "%~f1" && echo [UNREGISTERED SVR] %~n1 || "%RegAsm%" /unregister /nologo /silent "%~f1" 2>nul && echo [UNREGISTERED ASM] %~n1 || "%RegSvcs%" /u /quiet "%~f1" 2>nul && echo [UNREGISTERED SVCS] %~n1 || echo [SKIPPED] %~n1
+"%RegSvr32%" /u /s "%~f1" && echo [DEREGISTERED SVR] "%~f1" || "%RegAsm%" /unregister /nologo /silent "%~f1" 2>nul && echo [DEREGISTERED ASM] "%~f1" || "%RegSvcs%" /u /quiet "%~f1" 2>nul && echo [DEREGISTERED SVCS] "%~f1" || echo [DEREGISTERED SKIPPED] "%~f1"
 if exist "%~dpn1.tlb" call :UnRegisterTLB "%~dpn1.tlb"
 exit /b
 
 
 :UnRegisterTLB <File> {RegTLib} ~UI/IO
-"%RegTLib%" -u "%~1" 2>nul && echo [UNREGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
+"%RegTLib%" -u "%~1" 2>nul && echo [DEREGISTERED TLB] "%~f1" || echo [DEREGISTERED SKIPPED] "%~f1"
 exit /b
