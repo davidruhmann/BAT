@@ -2,7 +2,7 @@
 call :Main
 exit /b
 
-:: VCBuild (2015-01-15)
+:: VCBuild (2015-01-23)
 :: Visual Studio and Klocwork Build Manager
 ::
 :: Copyright (c) 2014 David Ruhmann
@@ -40,9 +40,6 @@ call :LoadProject || goto _MainEnd
 call :ParseLabels
 call :DetectBranch
 call :DefaultValues
-@echo on
-call :Registration
-@echo off
 call :Execute || goto _MainEnd
 :_MainEnd
 call :LogErrors
@@ -57,6 +54,9 @@ set "Debug=" & if /i "%~1"=="Debug" set "Debug=YES"
 call :IsTrue Debug && call :IsTrue Klocwork && call :Not :IsSharp %PROJECT% && call :Not :Defined %6 && call :Not :EqualsTrue %4 && (endlocal & exit /b 0)
 call :BuildEnvironment %Debug%
 call :TidyEnvironment
+@echo on
+call :Registration
+@echo off
 if "%~2"=="90" call :VCBuild %1 %6
 if "%~2"=="100" call :MSBuild %1 %2 %3 %4 %5 %6
 if "%~2"=="110" call :MSBuild %1 %2 %3 %4 %5 %6
@@ -342,11 +342,12 @@ endlocal & exit /b %ErrorLevel%
 :RegistrationSetup
 for %%A in ("%SystemRoot%\System32\regsvr32.exe") do if exist "%%~fA" ( set "RegSvr32=%%~fA" )
 for %%A in ("%SystemRoot%\RegTLib.exe" "%SystemRoot%\SysWOW64\URTTEMP\RegTLib.exe" "%SystemRoot%\Microsoft.NET\Framework\v2.0.50727\RegTLibv12.exe" "%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\RegTLibv12.exe") do if exist "%%~fA" ( set "RegTLib=%%~fA" )
-for %%A in ("%ProgramFiles%\Microsoft SDKs\Windows" "%ProgramFiles(x86)%\Microsoft SDKs\Windows") do if exist "%%~A\" for %%B in ("v7.0A\Bin" "v7.1\Bin" "v7.0A\Bin\NETFX 4.0 Tools" "v7.1\Bin\NETFX 4.0 Tools" "v8.0A\bin\NETFX 4.0 Tools" "v8.1A\bin\NETFX 4.5.1 Tools") do if exist "%%~A\%%~B\TlbImp.exe" ( set "TlbImp=%%~A\%%~B\TlbImp.exe" )
+for %%A in ("%ProgramFiles%\Microsoft SDKs\Windows" "%ProgramFiles(x86)%\Microsoft SDKs\Windows") do if exist "%%~A\" for %%B in ("v7.0A\Bin" "v7.1\Bin" "v7.0A\Bin\NETFX 4.0 Tools" "v7.1\Bin\NETFX 4.0 Tools" "v8.0A\bin\NETFX 4.0 Tools" "v8.1A\bin\NETFX 4.5.1 Tools") do if exist "%%~A\%%~B\TlbImp.exe" ( set "TlbImp=%%~A\%%~B\TlbImp.exe" & set "TlbExp=%%~A\%%~B\TlbExp.exe" )
 for %%A in ("%SystemRoot%\Microsoft.NET\Framework\v1.1.4322" "%SystemRoot%\Microsoft.NET\Framework\v2.0.50727" "%SystemRoot%\Microsoft.NET\Framework\v4.0.30319") do if exist "%%~fA\" ( set "RegAsm=%%~fA\RegAsm.exe" & set "RegSvcs=%%~dpA\RegSvcs.exe" )
 if not defined RegSvr32 echo [WARNING] Unable to find RegSvr32
 if not defined RegTLib echo [WARNING] Unable to find RegTLib
-if not defined TLibImp echo [WARNING] Unable to find TLibImp
+if not defined TlbImp echo [WARNING] Unable to find TlbImp
+if not defined TlbExp echo [WARNING] Unable to find TlbExp
 if not defined RegAsm echo [WARNING] Unable to find RegAsm
 if not defined RegSvcs echo [WARNING] Unable to find RegSvcs
 exit /b 0 {RegTLib} {TlbImp} {RegAsm} {RegSvcs} {RegSvr32}
@@ -486,11 +487,12 @@ exit /b 1
 :Register [Directory;File;List=%CD%]
 setlocal
 call :Define List "%~1" "%CD%"
-for %%A in ("%List:;=" "%") do if exist "%%~fA\" ( call :RegisterDirectory "%%~fA" ) else if exist "%%~A" ( call :RegisterFile "%%~A" ) else call :RegisterFirstFile "%%~A" || echo [INVALID] %%~nA
+for %%A in ("%List:;=" "%") do ( call :RegisterDirectory "%%~fA" || call :RegisterFile "%%~A" || call :RegisterFirstFile "%%~A" || echo [INVALID] %%~nA )
 endlocal & exit /b %ErrorLevel%
 
 
 :RegisterDirectory [Directory=%CD%] ~UI/IO
+if not exist "%~1\" exit /b 1
 setlocal & echo.
 call :Define Location %1 "%CD%"
 pushd %Location% 2>nul && for /f "delims=" %%A in ('dir a-d /b *.dll *.ocx *.tlb') do call :RegisterFile "%%~fA"
@@ -499,27 +501,35 @@ popd & endlocal & exit /b %ErrorLevel%
 
 
 :RegisterFile <File>
-echo [VERBOSE] %1
+if not exist "%~1" exit /b 1
 call :UnRegisterFile %1 >nul
-if /i "%~x1"==".tlb" call :RegisterTLB
-if /i not "%~x1"==".tlb" call :RegisterDLL
+if /i "%~x1"==".tlb" call :RegisterTLB %1
+if /i not "%~x1"==".tlb" call :RegisterDLL %1
 exit /b
 
 
 :RegisterFirstFile <File> {PATH} {LIBPATH} {LIB}
-for %%A in ("%LIBPATH:;=" "% %LIB:;=" "% %PATH:;=" "%") do if exist "%%~A\%~nx1" ( call :RegisterFile "%%~A\%~nx1" && exit /b 0 )
+setlocal
+set "_=%LIBPATH%;%LIB%;%PATH%"
+call :TidyList _
+call :RegisterFirstFile_ %1
+endlocal & exit /b %ErrorLevel%
+
+
+:RegisterFirstFile_ <File> {_}
+if defined _ for %%A in ("%_:;=" "%") do if exist "%%~A\%~nx1" ( call :RegisterFile "%%~A\%~nx1" && exit /b 0 )
 exit /b 1
 
 
-:RegisterDLL {RegAsm} {RegSvcs} {RegSvr32} ~UI/IO
-@"%RegSvr32%" /s "%~f1" && echo [REGISTERED SVR] %~n1 || @"%RegAsm%" /nologo /silent "%~f1" /tlb:"%~dpn1.tlb" /codebase 2>nul && echo [REGISTERED ASM W/TLB] %~n1 || @"%RegAsm%" /nologo /silent "%~f1" /codebase 2>nul && echo [REGISTERED ASM] %~n1 || @"%RegSvcs%" /quiet "%~f1" 2>nul && echo [REGISTERED SVCS] %~n1 || echo [SKIPPED] %~n1
+:RegisterDLL <File> {RegAsm} {RegSvcs} {RegSvr32} ~UI/IO
+"%RegSvr32%" /s "%~f1" && echo [REGISTERED SVR] %~n1 || "%RegAsm%" /nologo /silent "%~f1" /tlb:"%~dpn1.tlb" /codebase 2>nul && echo [REGISTERED ASM W/TLB] %~n1 || "%RegAsm%" /nologo /silent "%~f1" /codebase 2>nul && echo [REGISTERED ASM] %~n1 || "%RegSvcs%" /quiet "%~f1" 2>nul && echo [REGISTERED SVCS] %~n1 || echo [SKIPPED] %~n1
 if exist "%~dpn1.tlb" call :RegisterTLB "%~dpn1.tlb"
 exit /b
 
 
-:RegisterTLB {RegTLib} {TlbImp} ~UI/IO
-@"%RegTLib%" "%~1" 2>nul && echo [REGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
-@"%TlbImp%" "%~1" /silent 2>nul && echo [IMPORTED TLB] %~n1
+:RegisterTLB <File> {RegTLib} {TlbImp} ~UI/IO
+"%RegTLib%" "%~1" 2>nul && echo [REGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
+"%TlbImp%" "%~1" /silent 2>nul && echo [IMPORTED TLB] %~n1
 exit /b
 
 
@@ -554,10 +564,11 @@ call :Define "%~1" "%%%~1:;;=;%%"
 call :Define "%~1" "%%%~1:;\=;\\%%"
 call :Define "%~1" "%%%~1:~1%%"
 call :CheckList %1
-exit /b %ErrorLevel%
+exit /b
 
 
 :UnRegisterDirectory [Directory=%CD%] ~UI/IO
+if not exist "%~1\" exit /b 1
 setlocal & echo.
 call :Define Location %1 "%CD%"
 pushd %Location% 2>nul && for /f "delims=" %%A in ('dir a-d /b *.dll *.ocx *.tlb') do call :UnRegisterFile "%%~fA"
@@ -566,17 +577,18 @@ popd & endlocal & exit /b %ErrorLevel%
 
 
 :UnRegisterFile <File> ~UI/IO
-if /i "%~x1"==".tlb" call :UnRegisterTLB
-if /i not "%~x1"==".tlb" call :UnRegisterDLL
+if not exist "%~1" exit /b 1
+if /i "%~x1"==".tlb" call :UnRegisterTLB %1
+if /i not "%~x1"==".tlb" call :UnRegisterDLL %1
 exit /b
 
 
-:UnRegisterDLL {RegAsm} {RegSvcs} {RegSvr32} ~UI/IO
-@"%RegSvr32%" /u /s "%~f1" && echo [UNREGISTERED SVR] %~n1 || @"%RegAsm%" /unregister /nologo /silent "%~f1" 2>nul && echo [UNREGISTERED ASM] %~n1 || @"%RegSvcs%" /u /quiet "%~f1" 2>nul && echo [UNREGISTERED SVCS] %~n1 || echo [SKIPPED] %~n1
+:UnRegisterDLL <File> {RegAsm} {RegSvcs} {RegSvr32} ~UI/IO
+"%RegSvr32%" /u /s "%~f1" && echo [UNREGISTERED SVR] %~n1 || "%RegAsm%" /unregister /nologo /silent "%~f1" 2>nul && echo [UNREGISTERED ASM] %~n1 || "%RegSvcs%" /u /quiet "%~f1" 2>nul && echo [UNREGISTERED SVCS] %~n1 || echo [SKIPPED] %~n1
 if exist "%~dpn1.tlb" call :UnRegisterTLB "%~dpn1.tlb"
 exit /b
 
 
-:UnRegisterTLB {RegTLib} ~UI/IO
-@"%RegTLib%" -u "%~1" 2>nul && echo [UNREGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
+:UnRegisterTLB <File> {RegTLib} ~UI/IO
+"%RegTLib%" -u "%~1" 2>nul && echo [UNREGISTERED TLB] %~n1 || echo [SKIPPED] %~n1
 exit /b
