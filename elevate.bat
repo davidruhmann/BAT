@@ -9,7 +9,7 @@ PowerShell -NoProfile -ExecutionPolicy RemoteSigned -Command "$0 = '%1'; $cl = '
 endlocal
 exit /b
 :ElevateMe
-:: ElevateMe does not work from inside cmd.exe due to batch files running in the same process, causing the grand parent to be elevated.  Can work for cmd and powershell, or for everything bug cmd. if ( $parent.ExecutablePath -like '*cmd.exe' ) { $gparent = $parent } else { ... }
+:: ElevateMe does not work from inside cmd.exe due to batch files running in the same process, causing the grand parent to be elevated.  Can work for cmd and powershell using: if ( $parent.ExecutablePath -like '*cmd.exe' ) { $gparent = $parent } else { ... }.  However, default is to support everything but cmd.
 setlocal DisableDelayedExpansion
 PowerShell -NoProfile -ExecutionPolicy RemoteSigned -Command "gwmi -Class Win32_Process -Filter ('ProcessId = ' + $pid) | foreach { $parent = gwmi -Class Win32_Process -Filter ('ProcessId = ' + $_.ParentProcessId)}; $gparent = gwmi -Class Win32_Process -Filter ('ProcessId = ' + $parent.ParentProcessId); if ( $gparent.CommandLine.Length -gt $gparent.ExecutablePath.Length ) { $args = ($gparent.CommandLine.Trim().Trim([char]0x22)).Substring($gparent.ExecutablePath.Length) }; if ( $var -eq $null ) { $args = ' ' }; start $gparent.ExecutablePath -Verb runas -ArgumentList $args -WorkingDirectory (cvpa .); exit(!$?);"
 :: TODO if failed, Attempt elevate with execution path
